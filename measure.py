@@ -116,8 +116,8 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
         
         # Draw FIFO bar (update in place)
         fifo_bar = draw_fifo_bar(num_entries, watermark=28)
-        watermark_indicator = "🔔" if watermark_flag else "  "
-        overflow_indicator = "⚠️ " if fifo_overflow else "  "
+        watermark_indicator = "!" if watermark_flag else "  "
+        overflow_indicator = "MISSION FAILED" if fifo_overflow else "  "
         
         # Print on same line using carriage return
         sys.stdout.write(f"\r{fifo_bar} {watermark_indicator} {overflow_indicator} Samples: {len(samples):4d}")
@@ -126,11 +126,11 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
         # Check for overflow
         if fifo_overflow:
             overflow_count += 1
-            print(f"\n⚠️  WARNING: FIFO overflow detected! (count: {overflow_count})")
+            print(f"\n WARNING: FIFO overflow detected! (count: {overflow_count})")
         
         # Watermark status change notification
         if watermark_flag and not last_watermark:
-            print(f"\n🔔 Watermark reached at {len(samples)} samples")
+            print(f"\n Watermark reached at {len(samples)} samples")
         last_watermark = watermark_flag
         
         # Read samples if available
@@ -224,6 +224,11 @@ def print_sample_preview(samples, num_preview=10):
     
     print()
 
+def flush(adxl):
+    num_entries = adxl.fifo_status.read("ENTRIES")
+    while num_entries != 0:
+        adxl.get_accel()
+
 
 def main():
     """Main measurement routine."""
@@ -238,6 +243,9 @@ def main():
     duration = 10  # seconds
     sample_rate = 100  # Hz
     
+    # Flush FIFO completely
+    flush(adxl)
+
     # Perform continuous acquisition
     samples = read_continuous(adxl, duration_seconds=duration, sample_rate=sample_rate)
     
