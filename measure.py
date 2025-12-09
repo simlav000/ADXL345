@@ -61,7 +61,6 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
         list: List of (timestamp, x_g, y_g, z_g) tuples
     """
     all_samples = []
-    start_time = time.time()
     sample_period = 1.0 / sample_rate
 
     print(f"=== STARTING CONTINUOUS ACQUISITION ===")
@@ -74,10 +73,12 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
     overflow_count = 0
     read_count = 0
 
+    samples = []
+    start_time = time.time()
     while time.time() - start_time < duration_seconds:
         # Check FIFO status
-        num_entries = adxl.fifo_status.read("ENTRIES")
-        watermark_flag = adxl.interrupt_source.read("WATERMARK")
+        print(f"Entries in FIFO: {adxl.fifo_status.read("ENTRIES")}")
+        print(f"Watermark: {adxl.interrupt_source.read("WATERMARK")}")
         fifo_overflow = adxl.interrupt_source.read("OVERRUN")
 
 
@@ -85,33 +86,24 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
             overflow_count += 1
             print(f"WARNING: FIFO overflow detected! (count: {overflow_count})")
 
-        # Read when watermark is reached or FIFO is getting full
-        if watermark_flag or num_entries >= 28:
-            read_count += 1
-            print(f"Read #{read_count}: {num_entries} samples in FIFO (watermark: {watermark_flag})")
-
-            # Read all available samples
-            for i in range(num_entries):
-                x_g, y_g, z_g = adxl.get_accel()
-
-                # Calculate timestamp assuming uniform sampling
-                timestamp = len(all_samples) * sample_period
-                all_samples.append((timestamp, x_g, y_g, z_g))
-
-            print(f"  → Total samples collected: {len(all_samples)}")
+        read_count += 1
+        samples.append(adxl.get_accel())
 
         # Small sleep to avoid hammering I2C bus
         time.sleep(0.01)
 
+    timestamped_samples = []
+    for i, (x, y, z) in enumerate(samples):
+        timestamp = i * sample_period
+        timestamped_samples.append((timestamp, x, y, z))
+
     print(f"\n=== ACQUISITION COMPLETE ===")
-    print(f"Collected {len(all_samples)} samples in {duration_seconds}s")
+    print(f"Collected {len(timestamped_samples)} samples in {duration_seconds}s")
     print(f"Expected: ~{duration_seconds * sample_rate}")
-    data_loss = max(0, duration_seconds * sample_rate - len(all_samples))
-    print(f"Data loss: {data_loss} samples ({data_loss / (duration_seconds * sample_rate) * 100:.2f}%)")
     print(f"Overflow events: {overflow_count}")
     print(f"Read operations: {read_count}\n")
 
-    return all_samples
+    return timestamped_samples 
 
 
 def write_to_csv(samples, filename=None):
