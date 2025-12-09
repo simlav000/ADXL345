@@ -31,7 +31,7 @@ class Register:
         mask = self.fields[field]
         shift_amount = (mask & -mask).bit_length() - 1
 
-        # Read-modify-write
+        # Read-modify-write (to only modify selected field and keep other fields intact)
         reg_value = self.bus.read_byte_data(self.device_address, self.register_address)
         reg_value = (reg_value & ~mask) | ((value << shift_amount) & mask)
         self.bus.write_byte_data(self.device_address, self.register_address, reg_value)
