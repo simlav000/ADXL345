@@ -134,7 +134,7 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
         last_watermark = watermark_flag
         
         # Read samples if available
-        if num_entries > 0:
+        if num_entries > 10:
             read_count += 1
             samples.append(adxl.get_accel())
         else:
@@ -143,7 +143,7 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
             continue
         
         # Small sleep to avoid hammering I2C bus
-        time.sleep(0.001)  # Shorter sleep for more responsive bar
+        time.sleep(0.001)
     
     # Move to new line after progress bar
     print("\n")
