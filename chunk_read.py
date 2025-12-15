@@ -27,6 +27,12 @@ def read_fifo(adxl):
     ]
 
 adxl = ADXL(0X1D, SMBus(1), 28, OutputDataRate.ODR_3200)
+adxl.data_format.write("FULL_RES", 1)
+adxl.fifo_ctl.write("MODE", 0b10)          # STREAM mode
+adxl.power_control.write("MEASURE", 1)     # START sampling
+
+import time
+time.sleep(0.01)   # 10 ms → FIFO can fill
 print(read_fifo(adxl))
 
 
