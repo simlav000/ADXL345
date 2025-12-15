@@ -19,6 +19,7 @@ are arranged as:
  | Y_MSB   | `0x35`           | `DATAY1`      |
  | Z_LSB   | `0x36`           | `DATAZ0`      |
  | Z_MSB   | `0x37`           | `DATAZ1`      |
+ 
 Where LSB means least significant byte and MSB means most significant byte.
 Thus, each axis comprises a 2 byte floating point number. The
 `accelerometer.acceleration` method from the CircuitPython library reads the
