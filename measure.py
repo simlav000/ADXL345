@@ -149,8 +149,6 @@ def read_continuous(adxl, duration_seconds=10):
     print(f"=== ACQUISITION COMPLETE ===")
     print(f"Collected {len(timestamped_samples)} samples in {duration_seconds}s")
     print(f"Expected: ~{duration_seconds * sample_rate}")
-    data_loss = max(0, duration_seconds * sample_rate - len(timestamped_samples))
-    print(f"Data loss: {data_loss} samples ({data_loss / (duration_seconds * sample_rate) * 100:.2f}%)")
     print(f"Overflow events: {overflow_count}")
     print(f"Read operations: {read_count}\n")
 
@@ -233,7 +231,7 @@ def main():
         0x1D,
         bus,
         watermark=28,
-        odr=OutputDataRate.ODR_200
+        odr=OutputDataRate.ODR_3200
     )
 
     # Initialize the device
