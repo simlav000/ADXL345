@@ -114,14 +114,18 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
         watermark_indicator = "!" if watermark_flag else "  "
         overflow_indicator = fifo_overflow and num_entries > adxl.watermark
 
-        # Print on same line using carriage return
-        sys.stdout.write(f"\r{fifo_bar} {watermark_indicator} {overflow_indicator} Samples: {len(samples):4d}")
-        sys.stdout.flush()
 
         # Check for overflow
         if overflow_indicator:
+            # Print on same line using carriage return
+            sys.stdout.write(f"\r{fifo_bar} {watermark_indicator} {overflow_indicator} Samples: {len(samples):4d}")
+            sys.stdout.flush()
             overflow_count += 1
             print(f"\n WARNING: FIFO overflow detected! (count: {overflow_count})")
+        else:
+            # Print on same line using carriage return
+            sys.stdout.write(f"\r{fifo_bar} Samples: {len(samples):4d}")
+            sys.stdout.flush()
 
         # Watermark status change notification
         if watermark_flag and not last_watermark:
