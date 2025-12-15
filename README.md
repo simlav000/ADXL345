@@ -34,12 +34,12 @@ information to ensure that acceleration samples are equally spaced in time. If
 these checks are not done, there are two potential avenues for unevenly sampled
 data
 
- 1. Reading too fast:
+ 1. **Reading too fast**:
     If the program reads faster than the chip's output data rate, the FIFO will
     be empty when the next read is performed, and so there will be no data to 
     replace the contents of registers `0x32 - 0x37` with. This means that data
     will be duplicated.
- 2. Reading too slow:
+ 2. **Reading too slow**:
     If the program reads too slowly, the FIFO will fill up beyond its capacity,
     and it will discard the oldest data, meaning there is no longer a guarantee
     that two values from `accel.acceleration` are equally spaced in time.
@@ -51,6 +51,34 @@ where ODR is the output data rate to give the FIFO has enough time to fill up
 with data when we find that it is empty.
 
 The second problem also addressed by monitoring the number of values in the 
-FIFO, but once we reach ODRs beyond ~800 Hz, we begin to be bottlenecked by
+FIFO and alerting the user if data has been discarded. To monitor this, a
+FIFO status bar is printed which looks like:
+```[█████████████████████████████████░░|░░░░] 27/32 Samples: 1337```
+which simply helps visualize how full the FIFO is. The vertical bar towards
+the end designates the watermark, and once the FIFO is completely filled,
+a warning message is printed and the event is counted. At the end of the 
+measurement run, the total number of overflow events is printed.
+
+This program works without overflow for most ODRs 
+but once we reach ODRs beyond ~800 Hz, we begin to be bottlenecked by
 i2c and require SPI to read faster. Since the vibrations I am trying to read
 are of the order of ~60 Hz, I do not care about this.
+
+### Usage
+If on raspberry pi, run `i2cdetect -y 1` to  obtain device address.
+
+Then, in your script, write:
+```
+from adxl345 import ADXL, OutputDataRate
+import smbus2
+
+# Optional parameters, defaults are already
+WATERMARK = 28 
+ODR = OutputDataRate.ODR_100 
+
+adxl = ADXL(DEVICE_ADDRESS, smbus2.SMBus(1), WATERMARK, ODR)
+
+x, y, z = adxl.get_accel()
+```
+use the above for simple operation, and see `measure.py` for precise
+timing usage.
