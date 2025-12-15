@@ -112,14 +112,14 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
         # Draw FIFO bar (update in place)
         fifo_bar = draw_fifo_bar(num_entries, watermark=adxl.watermark)
         watermark_indicator = "!" if watermark_flag else "  "
-        overflow_indicator = "MISSION FAILED" if fifo_overflow and num_entries > adxl.watermark else "  "
+        overflow_indicator = fifo_overflow and num_entries > adxl.watermark
 
         # Print on same line using carriage return
         sys.stdout.write(f"\r{fifo_bar} {watermark_indicator} {overflow_indicator} Samples: {len(samples):4d}")
         sys.stdout.flush()
 
         # Check for overflow
-        if fifo_overflow:
+        if overflow_indicator:
             overflow_count += 1
             print(f"\n WARNING: FIFO overflow detected! (count: {overflow_count})")
 
