@@ -24,14 +24,7 @@ def init_adxl(adxl):
     print("Setting data rate to 100 Hz...")
     adxl.bandwidth_rate.write("RATE", 0x0A)  # 0x0A = 100 Hz
 
-    # # Clear FIFO by setting to BYPASS mode, then back to STREAM
-    # print("Clearing FIFO...")
-    # adxl.fifo_ctl.write("MODE", 0b00)  # BYPASS mode
-    # time.sleep(0.01)
-
-    # Set FIFO to STREAM mode with watermark at 28
-    print("Setting FIFO to STREAM mode with watermark at 28...")
-    adxl.fifo_ctl.write("SAMPLES", 28)  # Watermark at 28 samples
+    # Set FIFO to STREAM mode
     adxl.fifo_ctl.write("MODE", 0b10)  # STREAM mode
 
     # Enable measurement mode
@@ -96,7 +89,7 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
     print(f"Duration: {duration_seconds}s")
     print(f"Sample rate: {sample_rate} Hz")
     print(f"Expected samples: ~{duration_seconds * sample_rate}")
-    print(f"Watermark set at 28 samples")
+    print(f"Watermark set at {adxl.watermark} samples")
     print(f"Reading when samples available...\n")
 
     overflow_count = 0
@@ -107,7 +100,7 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
     # Print initial status line
     print("FIFO Status:")
     watermark_flag = adxl.interrupt_source.read("WATERMARK")
-    time.sleep(0.02)
+    time.sleep(0.05)
 
     start_time = time.time()
     while time.time() - start_time < duration_seconds:
@@ -117,9 +110,9 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
         fifo_overflow = adxl.interrupt_source.read("OVERRUN")
 
         # Draw FIFO bar (update in place)
-        fifo_bar = draw_fifo_bar(num_entries, watermark=28)
+        fifo_bar = draw_fifo_bar(num_entries, watermark=adxl.watermark)
         watermark_indicator = "!" if watermark_flag else "  "
-        overflow_indicator = "MISSION FAILED" if fifo_overflow else "  "
+        overflow_indicator = "MISSION FAILED" if fifo_overflow and num_entries > adxl.watermark else "  "
 
         # Print on same line using carriage return
         sys.stdout.write(f"\r{fifo_bar} {watermark_indicator} {overflow_indicator} Samples: {len(samples):4d}")
@@ -239,10 +232,7 @@ def main():
     """Main measurement routine."""
     # Initialize I2C bus and ADXL345
     bus = smbus2.SMBus(1)
-    adxl = ADXL(0x1D, bus)
-
-    # Flush FIFO completely
-    flush(adxl)
+    adxl = ADXL(0x1D, bus, watermark=28)
 
     # Initialize the device
     init_adxl(adxl)

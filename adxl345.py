@@ -37,9 +37,10 @@ class Register:
         self.bus.write_byte_data(self.device_address, self.register_address, reg_value)
 
 class ADXL:
-    def __init__(self, address: int, bus):
+    def __init__(self, address: int, bus, watermark: int = 28):
         self.address = address
         self.bus = bus
+        self.watermark = watermark
 
         # Define registers
         # WARNING: Registers 0x01 through 0x1C are reserved. Do not touch!
@@ -98,13 +99,21 @@ class ADXL:
         })
 
         self._bind_registers()
+        self._set_watermark()
 
-    def _bind_registers(self):
+    def _bind_registers(self) -> None:
         """Bind all register objects to this device's bus."""
         for attr_name in dir(self):
             attr = getattr(self, attr_name)
             if isinstance(attr, Register):
                 attr._bind(self.bus, self.address)
+
+    def _set_watermark(self) -> None:
+        self.fifo_ctl.write("SAMPLES", self.watermark)  # 28 by default
+
+    def set_watermark(self, watermark: int) -> None:
+        self.watermark = watermark
+        self.fifo_ctl.write("SAMPLES", self.watermark)
 
     def get_accel(self):
         """Read acceleration data from DATAX, DATAY, DATAZ registers.
