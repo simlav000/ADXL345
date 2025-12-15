@@ -46,26 +46,26 @@ def init_adxl(adxl):
     print(f"FIFO_CTL.MODE:        0b{adxl.fifo_ctl.read('MODE'):02b}")
     print(f"FIFO_CTL.SAMPLES:     {adxl.fifo_ctl.read('SAMPLES')}")
     print(f"FIFO_STATUS.ENTRIES:  {adxl.fifo_status.read('ENTRIES')}")
-    
+
     print("\nInitialization complete.\n")
 
 
 def draw_fifo_bar(num_entries, watermark=28, max_size=32, bar_width=40):
     """Draw a visual representation of FIFO fill level.
-    
+
     Args:
         num_entries: Current number of samples in FIFO
         watermark: Watermark level
         max_size: Maximum FIFO size
         bar_width: Width of the bar in characters
-    
+
     Returns:
         str: Visual bar representation
     """
     # Calculate how many characters to fill
     fill_chars = int((num_entries / max_size) * bar_width)
     watermark_pos = int((watermark / max_size) * bar_width)
-    
+
     # Build the bar
     bar = ""
     for i in range(bar_width):
@@ -75,64 +75,64 @@ def draw_fifo_bar(num_entries, watermark=28, max_size=32, bar_width=40):
             bar += "|"  # Show watermark position
         else:
             bar += "░"
-    
+
     return f"[{bar}] {num_entries:2d}/32"
 
 
 def read_continuous(adxl, duration_seconds=10, sample_rate=100):
     """Continuously read FIFO with watermark monitoring to avoid data loss.
-    
+
     Args:
         adxl: ADXL instance
         duration_seconds: How long to acquire data
         sample_rate: Expected sample rate in Hz
-    
+
     Returns:
         list: List of (timestamp, x_g, y_g, z_g) tuples
     """
     sample_period = 1.0 / sample_rate
-    
+
     print(f"=== STARTING CONTINUOUS ACQUISITION ===")
     print(f"Duration: {duration_seconds}s")
     print(f"Sample rate: {sample_rate} Hz")
     print(f"Expected samples: ~{duration_seconds * sample_rate}")
     print(f"Watermark set at 28 samples")
     print(f"Reading when samples available...\n")
-    
+
     overflow_count = 0
     read_count = 0
     samples = []
     start_time = time.time()
     last_watermark = False
-    
+
     # Print initial status line
     print("FIFO Status:")
-    
+
     while time.time() - start_time < duration_seconds:
         # Check FIFO status
         num_entries = adxl.fifo_status.read("ENTRIES")
         watermark_flag = adxl.interrupt_source.read("WATERMARK")
         fifo_overflow = adxl.interrupt_source.read("OVERRUN")
-        
+
         # Draw FIFO bar (update in place)
         fifo_bar = draw_fifo_bar(num_entries, watermark=28)
         watermark_indicator = "!" if watermark_flag else "  "
         overflow_indicator = "MISSION FAILED" if fifo_overflow else "  "
-        
+
         # Print on same line using carriage return
         sys.stdout.write(f"\r{fifo_bar} {watermark_indicator} {overflow_indicator} Samples: {len(samples):4d}")
         sys.stdout.flush()
-        
+
         # Check for overflow
         if fifo_overflow:
             overflow_count += 1
             print(f"\n WARNING: FIFO overflow detected! (count: {overflow_count})")
-        
+
         # Watermark status change notification
         if watermark_flag and not last_watermark:
             print(f"\n Watermark reached at {len(samples)} samples")
         last_watermark = watermark_flag
-        
+
         # Read samples if available
         if num_entries > 10:
             read_count += 1
@@ -141,19 +141,19 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
             # Give more time for FIFO to fill up
             time.sleep(0.01)
             continue
-        
+
         # Small sleep to avoid hammering I2C bus
         time.sleep(0.001)
-    
+
     # Move to new line after progress bar
     print("\n")
-    
+
     # Create timestamped samples
     timestamped_samples = []
     for i, (x, y, z) in enumerate(samples):
         timestamp = i * sample_period
         timestamped_samples.append((timestamp, x, y, z))
-    
+
     print(f"=== ACQUISITION COMPLETE ===")
     print(f"Collected {len(timestamped_samples)} samples in {duration_seconds}s")
     print(f"Expected: ~{duration_seconds * sample_rate}")
@@ -161,32 +161,32 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
     print(f"Data loss: {data_loss} samples ({data_loss / (duration_seconds * sample_rate) * 100:.2f}%)")
     print(f"Overflow events: {overflow_count}")
     print(f"Read operations: {read_count}\n")
-    
+
     return timestamped_samples
 
 
 def write_to_csv(samples, filename=None):
     """Write samples with timestamps to CSV file.
-    
+
     Args:
         samples: List of (timestamp, x_g, y_g, z_g) tuples
         filename: Output filename (auto-generated if None)
-    
+
     Returns:
         str: The filename written to
     """
     if filename is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"accelerometer_data_{timestamp}.csv"
-    
+        filename = fr"data/accelerometer_data_{timestamp}.csv"
+
     print(f"Writing {len(samples)} samples to {filename}...")
-    
+
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
-        
+
         # Write header
         writer.writerow(['time_s', 'x_g', 'y_g', 'z_g'])
-        
+
         # Write data
         for timestamp, x_g, y_g, z_g in samples:
             writer.writerow([
@@ -195,8 +195,7 @@ def write_to_csv(samples, filename=None):
                 f"{y_g:.6f}",
                 f"{z_g:.6f}"
             ])
-    
-    print(f"✓ Successfully wrote data to {filename}\n")
+
     return filename
 
 
@@ -205,23 +204,23 @@ def print_sample_preview(samples, num_preview=10):
     if not samples:
         print("No samples to preview.")
         return
-    
+
     print("=== SAMPLE PREVIEW ===")
     print(f"{'Time(s)':<12} {'X(g)':<10} {'Y(g)':<10} {'Z(g)':<10}")
     print("-" * 42)
-    
+
     # First samples
     for timestamp, x, y, z in samples[:num_preview]:
         print(f"{timestamp:<12.6f} {x:<10.4f} {y:<10.4f} {z:<10.4f}")
-    
+
     if len(samples) > num_preview * 2:
         print("...")
         print()
-        
+
         # Last samples
         for timestamp, x, y, z in samples[-num_preview:]:
             print(f"{timestamp:<12.6f} {x:<10.4f} {y:<10.4f} {z:<10.4f}")
-    
+
     print()
 
 def flush(adxl):
@@ -259,11 +258,10 @@ def main():
     # Print preview
     print_sample_preview(samples, num_preview=10)
 
-    print("=" * 50)
-    print(f"✓ Measurement complete!")
-    print(f"✓ Data saved to: {filename}")
-    print(f"✓ Ready for frequency analysis (FFT, PSD, Welch)")
-    print("=" * 50)
+    print("=" * 53)
+    print(f"Measurement complete!")
+    print(f"Data saved to: {filename}")
+    print("=" * 53)
     print()
 
     terminate(adxl)
