@@ -1,4 +1,30 @@
 #!/usr/bin/env python3
+import smbus2
+from enum import IntEnum
+
+class OutputDataRate(IntEnum):
+    # Read 12P5 as 12 point 5
+    ODR_3200 = 0b1111
+    ODR_1600 = 0b1110
+    ODR_800  = 0b1101
+    ODR_400  = 0b1100
+    ODR_200  = 0b1011
+    ODR_100  = 0b1010 # Default
+    ODR_50   = 0b1001
+    ODR_25   = 0b1000
+    ODR_12P5 = 0b0111
+    ODR_6P25 = 0b0110
+    ODR_3P13 = 0b0101
+    ODR_1P56 = 0b0100
+    ODR_0P78 = 0b0011
+    ODR_0P39 = 0b0010
+    ODR_0P20 = 0b0001
+    ODR_0P10 = 0b0000
+
+    @property
+    def hz(self) -> float:
+        # Get value in Hz from enum member's names
+        return float(self.name[4:].replace("P", "."))
 
 class Register:
     def __init__(self, address: int, read_only: bool, fields: dict[str, int]):
@@ -37,16 +63,23 @@ class Register:
         self.bus.write_byte_data(self.device_address, self.register_address, reg_value)
 
 class ADXL:
-    def __init__(self, address: int, bus, watermark: int = 28):
+    def __init__(
+            self,
+            address: int,
+            bus: smbus2.SMBus,
+            watermark: int = 28,
+            odr = OutputDataRate.ODR_100
+    ):
         self.address = address
         self.bus = bus
         self.watermark = watermark
+        self.odr = odr
 
         # Define registers
         # WARNING: Registers 0x01 through 0x1C are reserved. Do not touch!
         self.bandwidth_rate = Register(0x2C, False, {
             "LOW_POWER"  : 0x10,
-            "RATE"       : 0x0F # TODO: Figure out way to only pass legal values for rate.
+            "RATE"       : 0x0F
         })
 
         self.power_control = Register(0x2D, False, {
@@ -100,6 +133,7 @@ class ADXL:
 
         self._bind_registers()
         self._set_watermark()
+        self._set_odr()
 
     def _bind_registers(self) -> None:
         """Bind all register objects to this device's bus."""
@@ -108,12 +142,24 @@ class ADXL:
             if isinstance(attr, Register):
                 attr._bind(self.bus, self.address)
 
+
     def _set_watermark(self) -> None:
         self.fifo_ctl.write("SAMPLES", self.watermark)  # 28 by default
+
+
+    def _set_odr(self) -> None:
+        self.bandwidth_rate.write("RATE", self.odr)  # 100 Hz by default
+
 
     def set_watermark(self, watermark: int) -> None:
         self.watermark = watermark
         self.fifo_ctl.write("SAMPLES", self.watermark)
+
+
+    def set_odr(self, odr: OutputDataRate) -> None:
+        self.odr = odr
+        self.bandwidth_rate.write("RATE", self.odr)  # 100 Hz by default
+
 
     def get_accel(self):
         """Read acceleration data from DATAX, DATAY, DATAZ registers.

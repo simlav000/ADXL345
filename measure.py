@@ -4,7 +4,7 @@ import time
 import csv
 import sys
 from datetime import datetime
-from adxl345 import ADXL
+from adxl345 import ADXL, OutputDataRate
 
 def init_adxl(adxl):
     """Initialize ADXL345 for continuous measurement with FIFO."""
@@ -20,9 +20,6 @@ def init_adxl(adxl):
     print("Setting FULL_RES mode (±16g)...")
     adxl.data_format.write("FULL_RES", 1)
 
-    # Set bandwidth rate to 100 Hz
-    print("Setting data rate to 100 Hz...")
-    adxl.bandwidth_rate.write("RATE", 0x0A)  # 0x0A = 100 Hz
 
     # Set FIFO to STREAM mode
     adxl.fifo_ctl.write("MODE", 0b10)  # STREAM mode
@@ -72,7 +69,7 @@ def draw_fifo_bar(num_entries, watermark=28, max_size=32, bar_width=40):
     return f"[{bar}] {num_entries:2d}/32"
 
 
-def read_continuous(adxl, duration_seconds=10, sample_rate=100):
+def read_continuous(adxl, duration_seconds=10):
     """Continuously read FIFO with watermark monitoring to avoid data loss.
 
     Args:
@@ -83,6 +80,7 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
     Returns:
         list: List of (timestamp, x_g, y_g, z_g) tuples
     """
+    sample_rate = adxl.odr.hz
     sample_period = 1.0 / sample_rate
 
     print(f"=== STARTING CONTINUOUS ACQUISITION ===")
@@ -236,17 +234,21 @@ def main():
     """Main measurement routine."""
     # Initialize I2C bus and ADXL345
     bus = smbus2.SMBus(1)
-    adxl = ADXL(0x1D, bus, watermark=28)
+    adxl = ADXL(
+        0x1D,
+        bus,
+        watermark=28,
+        odr=OutputDataRate.ODR_200
+    )
 
     # Initialize the device
     init_adxl(adxl)
 
     # Acquisition parameters
     duration = 10  # seconds
-    sample_rate = 100  # Hz
 
     # Perform continuous acquisition
-    samples = read_continuous(adxl, duration_seconds=duration, sample_rate=sample_rate)
+    samples = read_continuous(adxl, duration_seconds=duration)
 
     # Write to CSV
     filename = write_to_csv(samples)
@@ -254,10 +256,10 @@ def main():
     # Print preview
     print_sample_preview(samples, num_preview=10)
 
-    print("=" * 53)
+    print("=" * 57)
     print(f"Measurement complete!")
     print(f"Data saved to: {filename}")
-    print("=" * 53)
+    print("=" * 57)
     print()
 
     terminate(adxl)
