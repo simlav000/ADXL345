@@ -102,12 +102,14 @@ def read_continuous(adxl, duration_seconds=10, sample_rate=100):
     overflow_count = 0
     read_count = 0
     samples = []
-    start_time = time.time()
     last_watermark = False
 
     # Print initial status line
     print("FIFO Status:")
+    watermark_flag = adxl.interrupt_source.read("WATERMARK")
+    time.sleep(0.02)
 
+    start_time = time.time()
     while time.time() - start_time < duration_seconds:
         # Check FIFO status
         num_entries = adxl.fifo_status.read("ENTRIES")
