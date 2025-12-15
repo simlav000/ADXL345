@@ -9,35 +9,35 @@ from adxl345 import ADXL
 def init_adxl(adxl):
     """Initialize ADXL345 for continuous measurement with FIFO."""
     print("\n=== ADXL345 INITIALIZATION ===")
-    
+
     # Read device ID to verify communication
     devid = adxl.bus.read_byte_data(adxl.address, 0x00)
     print(f"Device ID: 0x{devid:02X} (expected 0xE5)")
     if devid != 0xE5:
         raise RuntimeError(f"Invalid device ID: 0x{devid:02X}")
-    
+
     # Set FULL_RES mode (±16g range with full resolution)
     print("Setting FULL_RES mode (±16g)...")
     adxl.data_format.write("FULL_RES", 1)
-    
+
     # Set bandwidth rate to 100 Hz
     print("Setting data rate to 100 Hz...")
     adxl.bandwidth_rate.write("RATE", 0x0A)  # 0x0A = 100 Hz
-    
-    # Clear FIFO by setting to BYPASS mode, then back to STREAM
-    print("Clearing FIFO...")
-    adxl.fifo_ctl.write("MODE", 0b00)  # BYPASS mode
-    time.sleep(0.01)
-    
+
+    # # Clear FIFO by setting to BYPASS mode, then back to STREAM
+    # print("Clearing FIFO...")
+    # adxl.fifo_ctl.write("MODE", 0b00)  # BYPASS mode
+    # time.sleep(0.01)
+
     # Set FIFO to STREAM mode with watermark at 28
     print("Setting FIFO to STREAM mode with watermark at 28...")
-    adxl.fifo_ctl.write("MODE", 0b10)  # STREAM mode
     adxl.fifo_ctl.write("SAMPLES", 28)  # Watermark at 28 samples
-    
+    adxl.fifo_ctl.write("MODE", 0b10)  # STREAM mode
+
     # Enable measurement mode
     print("Enabling MEASUREMENT mode...")
     adxl.power_control.write("MEASURE", 1)
-    
+
     # Verify settings
     print("\n*** REGISTER VERIFICATION ***")
     print(f"POWER_CTL.MEASURE:    {adxl.power_control.read('MEASURE')}")
@@ -225,42 +225,48 @@ def print_sample_preview(samples, num_preview=10):
     print()
 
 def flush(adxl):
+    adxl.fifo_ctl.write("MODE", 0b00)  # BYPASS mode
     num_entries = adxl.fifo_status.read("ENTRIES")
     while num_entries != 0:
         adxl.get_accel()
 
+def terminate(adxl):
+    # Sets sensor to BYPASS mode so FIFO does not fill
+    adxl.fifo_ctl.write("MODE", 0b00)  # BYPASS mode
 
 def main():
     """Main measurement routine."""
     # Initialize I2C bus and ADXL345
     bus = smbus2.SMBus(1)
     adxl = ADXL(0x1D, bus)
-    
-    # Initialize the device
-    init_adxl(adxl)
-    
-    # Acquisition parameters
-    duration = 10  # seconds
-    sample_rate = 100  # Hz
-    
+
     # Flush FIFO completely
     flush(adxl)
 
+    # Initialize the device
+    init_adxl(adxl)
+
+    # Acquisition parameters
+    duration = 10  # seconds
+    sample_rate = 100  # Hz
+
     # Perform continuous acquisition
     samples = read_continuous(adxl, duration_seconds=duration, sample_rate=sample_rate)
-    
+
     # Write to CSV
     filename = write_to_csv(samples)
-    
+
     # Print preview
     print_sample_preview(samples, num_preview=10)
-    
+
     print("=" * 50)
     print(f"✓ Measurement complete!")
     print(f"✓ Data saved to: {filename}")
     print(f"✓ Ready for frequency analysis (FFT, PSD, Welch)")
     print("=" * 50)
     print()
+
+    terminate(adxl)
 
 
 if __name__ == "__main__":
