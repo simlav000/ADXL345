@@ -97,8 +97,10 @@ def read_continuous(adxl, duration_seconds=10):
 
     # Print initial status line
     print("FIFO Status:")
+
+    # Read INT_SOURCE register to clear overrun and watermark bits
     watermark_flag = adxl.interrupt_source.read("WATERMARK")
-    time.sleep(0.05)
+    time.sleep(0.01)
 
     start_time = time.time()
     while time.time() - start_time < duration_seconds:
@@ -109,21 +111,15 @@ def read_continuous(adxl, duration_seconds=10):
 
         # Draw FIFO bar (update in place)
         fifo_bar = draw_fifo_bar(num_entries, watermark=adxl.watermark)
-        watermark_indicator = "!" if watermark_flag else "  "
         overflow_indicator = fifo_overflow and num_entries > adxl.watermark
-
 
         # Check for overflow
         if overflow_indicator:
-            # Print on same line using carriage return
-            sys.stdout.write(f"\r{fifo_bar} {watermark_indicator} {overflow_indicator} Samples: {len(samples):4d}")
-            sys.stdout.flush()
             overflow_count += 1
             print(f"\n WARNING: FIFO overflow detected! (count: {overflow_count})")
-        else:
-            # Print on same line using carriage return
-            sys.stdout.write(f"\r{fifo_bar} Samples: {len(samples):4d}")
-            sys.stdout.flush()
+
+        sys.stdout.write(f"\r{fifo_bar} Samples: {len(samples):4d}")
+        sys.stdout.flush()
 
         # Watermark status change notification
         if watermark_flag and not last_watermark:
@@ -131,18 +127,17 @@ def read_continuous(adxl, duration_seconds=10):
         last_watermark = watermark_flag
 
         # Read samples if available
-        if num_entries > 10:
+        if num_entries > 2:
             read_count += 1
             samples.append(adxl.get_accel())
         else:
             # Give more time for FIFO to fill up
-            time.sleep(0.01)
+            time.sleep(1/adxl.odr.hz)
             continue
 
         # Small sleep to avoid hammering I2C bus
         time.sleep(0.001)
 
-    # Move to new line after progress bar
     print("\n")
 
     # Create timestamped samples
