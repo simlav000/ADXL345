@@ -3,7 +3,10 @@ import smbus2
 from enum import IntEnum
 
 class OutputDataRate(IntEnum):
-    # Read 12P5 as 12 point 5
+    """
+    Enumerated class for allowable Output Data Rates (ODR) in Hz.
+    12P5 means 12.5 Hz
+    """
     ODR_3200 = 0b1111
     ODR_1600 = 0b1110
     ODR_800  = 0b1101
@@ -26,7 +29,37 @@ class OutputDataRate(IntEnum):
         # Get value in Hz from enum member's names
         return float(self.name[4:].replace("P", "."))
 
+
+class Range(IntEnum):
+    """
+    Enumerated class for allowable acceleration range
+    """
+    RANGE_FULL = 0b1 # Default
+    RANGE_16g  = 0b11
+    RANGE_8g   = 0b10
+    RANGE_4g   = 0b01
+    RANGE_2g   = 0b00
+
+    @property
+    def g(self) -> int:
+        # Get value in g's from enum member's names
+        return int(self.name[6:-1])
+
 class Register:
+    """
+    Register abstraction class
+
+    Parameters
+    ----------
+    address: int
+        Memory-mapped address of register (as per manual)
+    read_only: bool
+        Whether register can be written to
+    fields: dict[str, int]
+        Mapping between name of field and a bit mask that selects it.
+        For example if the 6 right-most bits of a certain register delineates a
+        field named "FIELD", it is selected by 0b0011_1111 or 0x3F
+    """
     def __init__(self, address: int, read_only: bool, fields: dict[str, int]):
         self.device_address = None  # Set later
         self.bus = None  # Set later
@@ -62,18 +95,45 @@ class Register:
         reg_value = (reg_value & ~mask) | ((value << shift_amount) & mask)
         self.bus.write_byte_data(self.device_address, self.register_address, reg_value)
 
-class ADXL:
+class ADXL345:
+    """
+    ADXL345 interface class.
+
+    Parameters:
+    -----------
+    address: int
+        i2c address of device on your machine. Found by running `i2cdetect -y 1`
+        if on raspberry pi.
+    bus: smbus2.SMBus
+        i2c bus from smbus2 package.
+    odr: (Optional) OutputDataRate
+        One of the provided output data rates for the sensor.
+        Default: 100 Hz
+    range: (Optional) Range
+        One of the provided acceleration ranges for the sensor
+        Default: Full resolution mode
+    watermark: (Optional) int
+        Number of values FIFO can hold before the watermark interrupt flag is
+        set.
+        Default: 28
+
+    Ideally, one would implement methods to read each of the fields without
+    having to use the "read" and "write" methods of the Register class, but
+    I must move on.
+    """
     def __init__(
             self,
             address: int,
             bus: smbus2.SMBus,
-            watermark: int = 28,
-            odr = OutputDataRate.ODR_100
+            odr = OutputDataRate.ODR_100,
+            g_range = Range.RANGE_FULL,
+            watermark: int = 28
     ):
-        self.address = address
+        self.address = address # Found by running i2cdetect -y 1 on raspi
         self.bus = bus
         self.watermark = watermark
         self.odr = odr
+        self.g_range = g_range
 
         # Define registers
         # WARNING: Registers 0x01 through 0x1C are reserved. Do not touch!
@@ -134,6 +194,7 @@ class ADXL:
         self._bind_registers()
         self._set_watermark()
         self._set_odr()
+        self._set_range()
 
     def _bind_registers(self) -> None:
         """Bind all register objects to this device's bus."""
@@ -150,15 +211,22 @@ class ADXL:
     def _set_odr(self) -> None:
         self.bandwidth_rate.write("RATE", self.odr)  # 100 Hz by default
 
+    def _set_range(self) -> None:
+        if self.g_range == Range.RANGE_FULL:
+            self.data_format.write("FULL_RES", self.g_range)
+        else:
+            self.data_format.write("FULL_RES", 0b0) # Turn full range off
+            self.data_format.write("RANGE", self.g_range)
+
 
     def set_watermark(self, watermark: int) -> None:
         self.watermark = watermark
-        self.fifo_ctl.write("SAMPLES", self.watermark)
+        self._set_watermark()
 
 
     def set_odr(self, odr: OutputDataRate) -> None:
         self.odr = odr
-        self.bandwidth_rate.write("RATE", self.odr)  # 100 Hz by default
+        self._set_odr()
 
 
     def get_accel(self):
@@ -168,7 +236,7 @@ class ADXL:
             tuple: (x, y, z) acceleration values
         """
         REG_DATAX0 = 0x32
-        SCALE_FACTOR = 0.0039  # g per LSB in FULL_RES mode (3.9 mg/LSB)
+        SCALE_FACTOR = 0.0039 * 9.8  # g per LSB in FULL_RES mode (3.9 mg/LSB)
 
         # Read all 6 bytes at once
         data = self.bus.read_i2c_block_data(self.address, REG_DATAX0, 6)
