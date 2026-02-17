@@ -25,6 +25,10 @@ class OutputDataRate(IntEnum):
     ODR_0P10 = 0b0000
 
     @property
+    def display(self):
+        return f"{self.hz} Hz"
+
+    @property
     def hz(self) -> float:
         # Get value in Hz from enum member's names
         return float(self.name[4:].replace("P", "."))
@@ -41,14 +45,18 @@ class Range(IntEnum):
     RANGE_2g   = 0b00
 
     @property
+    def display(self):
+        if self == Range.RANGE_FULL:
+            return "Full resolution"
+        return f"{self.g} g"
+
+    @property
     def g(self) -> int:
         # Get value in g's from enum member's names
         return int(self.name[6:-1])
 
 class Register:
     """
-    Register abstraction class
-
     Parameters
     ----------
     address: int

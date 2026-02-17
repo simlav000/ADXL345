@@ -4,7 +4,7 @@ import time
 import csv
 import sys
 from datetime import datetime
-from adxl345 import ADXL, OutputDataRate
+from adxl345 import ADXL345, OutputDataRate
 
 def init_adxl(adxl):
     """Initialize ADXL345 for continuous measurement with FIFO."""
@@ -223,25 +223,18 @@ def terminate(adxl):
     # Sets sensor to BYPASS mode so FIFO does not fill
     adxl.fifo_ctl.write("MODE", 0b00)  # BYPASS mode
 
-def main():
+def measure(sensor):
     """Main measurement routine."""
     # Initialize I2C bus and ADXL345
     bus = smbus2.SMBus(1)
-    adxl = ADXL(
-        0x1D,
-        bus,
-        watermark=28,
-        odr=OutputDataRate.ODR_3200
-    )
-
     # Initialize the device
-    init_adxl(adxl)
+    init_adxl(sensor)
 
     # Acquisition parameters
     duration = 10  # seconds
 
     # Perform continuous acquisition
-    samples = read_continuous(adxl, duration_seconds=duration)
+    samples = read_continuous(sensor, duration_seconds=duration)
 
     # Write to CSV
     filename = write_to_csv(samples)
@@ -255,12 +248,20 @@ def main():
     print("=" * 57)
     print()
 
-    terminate(adxl)
+    terminate(sensor)
 
 
 if __name__ == "__main__":
     try:
-        main()
+        bus = smbus2.SMBus(1)
+        sensor = ADXL345(
+            0x1D,
+            bus,
+            watermark=28,
+            odr=OutputDataRate.ODR_100
+        )
+
+        measure(sensor)
     except KeyboardInterrupt:
         print("\n\nMeasurement interrupted by user.")
     except Exception as e:
