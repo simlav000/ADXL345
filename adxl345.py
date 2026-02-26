@@ -53,6 +53,8 @@ class Range(IntEnum):
     @property
     def g(self) -> int:
         # Get value in g's from enum member's names
+        if self == Range.RANGE_FULL:
+            return 16
         return int(self.name[6:-1])
 
 class Register:
