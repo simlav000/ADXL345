@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import smbus2
 from adxl345 import ADXL345
 
 def decode_fifo_mode(mode_bits):
@@ -12,7 +13,7 @@ def decode_fifo_mode(mode_bits):
     return modes.get(mode_bits, "Unknown")
 
 def main():
-    sensor = ADXL345()
+    sensor = ADXL345(0x1D, smbus2.SMBus(1))
 
     print("\n--- ADXL345 REGISTER DUMP ---\n")
 
