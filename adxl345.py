@@ -238,23 +238,32 @@ class ADXL345:
 
 
     def get_accel(self):
-        """Read acceleration data from DATAX, DATAY, DATAZ registers.
-
-        Returns:
-            tuple: (x, y, z) acceleration values
-        """
         REG_DATAX0 = 0x32
-        SCALE_FACTOR = 0.0039 * 9.8  # g per LSB in FULL_RES mode (3.9 mg/LSB)
 
-        # Read all 6 bytes at once
+        # Read 6 bytes
         data = self.bus.read_i2c_block_data(self.address, REG_DATAX0, 6)
 
-        # Parse little-endian and convert to signed
         x = self._to_signed_16bit((data[1] << 8) | data[0])
         y = self._to_signed_16bit((data[3] << 8) | data[2])
         z = self._to_signed_16bit((data[5] << 8) | data[4])
 
-        return (x * SCALE_FACTOR, y * SCALE_FACTOR, z * SCALE_FACTOR)
+        # --- Determine correct scale dynamically ---
+        full_res = self.data_format.read("FULL_RES")
+        range_bits = self.data_format.read("RANGE")
+
+        if full_res:
+            scale = 0.0039  # g per LSB (3.9 mg)
+        else:
+            # 10-bit mode scaling:
+            # ±2g → 4g total span
+            # ±4g → 8g span
+            # ±8g → 16g span
+            # ±16g → 32g span
+            span_g = 2 * (2 ** (range_bits + 1))
+            scale = span_g / 1024
+
+        return (x * scale, y * scale, z * scale)
+
 
     def _to_signed_16bit(self, value):
         """Convert unsigned 16-bit value to signed."""

@@ -17,8 +17,8 @@ def init_adxl(adxl):
         raise RuntimeError(f"Invalid device ID: 0x{devid:02X}")
 
     # Set FULL_RES mode (±16g range with full resolution)
-    print("Setting FULL_RES mode (±16g)...")
-    adxl.data_format.write("FULL_RES", 1)
+    # print("Setting FULL_RES mode (±16g)...")
+    # adxl.data_format.write("FULL_RES", 1)
 
 
     # Set FIFO to STREAM mode
@@ -236,7 +236,7 @@ def measure(sensor: ADXL345):
     duration = 10  # seconds
 
     settings = [
-        f"Output Data Rate:{sensor.odr.hz} Hz", f"Range: {sensor.g_range.g} g"
+        f"Output Data Rate:{sensor.odr.hz} Hz ", f"Range: {sensor.g_range.g} g"
     ]
     # Perform continuous acquisition
     samples = read_continuous(sensor, duration_seconds=duration)
