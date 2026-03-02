@@ -17,8 +17,8 @@ def init_adxl(adxl):
         raise RuntimeError(f"Invalid device ID: 0x{devid:02X}")
 
     # Set FULL_RES mode (±16g range with full resolution)
-    print("Setting FULL_RES mode (±16g)...")
-    adxl.data_format.write("FULL_RES", 1)
+    # print("Setting FULL_RES mode (±16g)...")
+    # adxl.data_format.write("FULL_RES", 1)
 
 
     # Set FIFO to STREAM mode
@@ -155,8 +155,8 @@ def read_continuous(adxl, duration_seconds=10):
     return timestamped_samples
 
 
-def write_to_csv(samples, filename=None):
-    """Write samples with timestamps to CSV file.
+def write_to_csv(samples, settings, filename=None):
+    """Write samples with timestamps and metadata to CSV file.
 
     Args:
         samples: List of (timestamp, x_g, y_g, z_g) tuples
@@ -174,6 +174,8 @@ def write_to_csv(samples, filename=None):
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
 
+        # Write metadata (settings)
+        writer.writerow(settings)
         # Write header
         writer.writerow(['time_s', 'x_g', 'y_g', 'z_g'])
 
@@ -223,7 +225,7 @@ def terminate(adxl):
     # Sets sensor to BYPASS mode so FIFO does not fill
     adxl.fifo_ctl.write("MODE", 0b00)  # BYPASS mode
 
-def measure(sensor):
+def measure(sensor: ADXL345):
     """Main measurement routine."""
     # Initialize I2C bus and ADXL345
     bus = smbus2.SMBus(1)
@@ -233,11 +235,14 @@ def measure(sensor):
     # Acquisition parameters
     duration = 10  # seconds
 
+    settings = [
+        f"Output Data Rate:{sensor.odr.hz} Hz ", f"Range: {sensor.g_range.g} g"
+    ]
     # Perform continuous acquisition
     samples = read_continuous(sensor, duration_seconds=duration)
 
     # Write to CSV
-    filename = write_to_csv(samples)
+    filename = write_to_csv(samples, settings)
 
     # Print preview
     print_sample_preview(samples, num_preview=10)

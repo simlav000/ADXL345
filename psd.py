@@ -12,8 +12,6 @@ meta_row = pd.read_csv(fname, nrows=1, header=None).iloc[0]
 odr = meta_row[0]
 range_g = meta_row[1]
 
-#print(ODR, accel_range)
-
 df = pd.read_csv(fname, skiprows=1)
 
 # Use time_relative for uniform sampling
@@ -34,6 +32,9 @@ f, psd = signal.welch(mag, fs=100, nperseg=256)
 
 # Output filename (same directory, same stem, different suffix)
 output_path = fname.with_suffix(".png")
+
+# Welch PSD
+f, psd = signal.welch(acc_mag, fs=100, nperseg=256)
 
 # Plot
 plt.figure(figsize=(12, 4))
