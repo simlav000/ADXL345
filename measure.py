@@ -233,7 +233,7 @@ def measure(sensor: ADXL345):
     init_adxl(sensor)
 
     # Acquisition parameters
-    duration = 10  # seconds
+    duration = 120 # seconds
 
     settings = [
         f"Output Data Rate:{sensor.odr.hz} Hz ", f"Range: {sensor.g_range.g} g"
