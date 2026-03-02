@@ -9,8 +9,9 @@ fname = Path("data/accelerometer_data_20260302_123634.csv")
 # Read first row only (metadata row)
 meta_row = pd.read_csv(fname, nrows=1, header=None).iloc[0]
 
-odr = meta_row[0]
-range_g = meta_row[1]
+is_stationary =  meta_row[0]
+odr = meta_row[1]
+range_g = meta_row[2]
 
 df = pd.read_csv(fname, skiprows=1)
 
@@ -41,7 +42,7 @@ plt.figure(figsize=(12, 4))
 
 plt.subplot(211)
 plt.plot(t, mag)
-plt.title(f"{fname.stem} | ODR={odr} | Range={range_g}")
+plt.title(f"{fname.stem} | {is_stationary} | {odr} | {range_g}")
 plt.xlabel('Time (s)')
 plt.ylabel('Acceleration (g)')
 

@@ -46,6 +46,9 @@ def main():
     odr = select_enum(OutputDataRate, default_odr)
     g_range = select_enum(Range, default_range)
 
+    is_stationary = input("Stationary? (y/n): ")
+    is_stationary = True if is_stationary.lower() in ["y", "yes"] else False
+
     if not confirm_settings(odr, g_range):
         print("Startup aborted.")
         return
@@ -58,7 +61,7 @@ def main():
         g_range=g_range
     )
 
-    measure.measure(sensor)
+    measure.measure(sensor, is_stationary)
 
 
 if __name__ == "__main__":

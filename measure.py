@@ -10,17 +10,6 @@ def init_adxl(adxl):
     """Initialize ADXL345 for continuous measurement with FIFO."""
     print("\n=== ADXL345 INITIALIZATION ===")
 
-    # Read device ID to verify communication
-    devid = adxl.bus.read_byte_data(adxl.address, 0x00)
-    print(f"Device ID: 0x{devid:02X} (expected 0xE5)")
-    if devid != 0xE5:
-        raise RuntimeError(f"Invalid device ID: 0x{devid:02X}")
-
-    # Set FULL_RES mode (±16g range with full resolution)
-    # print("Setting FULL_RES mode (±16g)...")
-    # adxl.data_format.write("FULL_RES", 1)
-
-
     # Set FIFO to STREAM mode
     adxl.fifo_ctl.write("MODE", 0b10)  # STREAM mode
 
@@ -31,7 +20,6 @@ def init_adxl(adxl):
     # Verify settings
     print("\n*** REGISTER VERIFICATION ***")
     print(f"POWER_CTL.MEASURE:    {adxl.power_control.read('MEASURE')}")
-    print(f"DATA_FORMAT.FULL_RES: {adxl.data_format.read('FULL_RES')}")
     print(f"BW_RATE.RATE:         0x{adxl.bandwidth_rate.read('RATE'):02X}")
     print(f"FIFO_CTL.MODE:        0b{adxl.fifo_ctl.read('MODE'):02b}")
     print(f"FIFO_CTL.SAMPLES:     {adxl.fifo_ctl.read('SAMPLES')}")
@@ -225,8 +213,12 @@ def terminate(adxl):
     # Sets sensor to BYPASS mode so FIFO does not fill
     adxl.fifo_ctl.write("MODE", 0b00)  # BYPASS mode
 
-def measure(sensor: ADXL345):
-    """Main measurement routine."""
+def measure(sensor: ADXL345, is_stationary : bool = False):
+    """
+    Main measurement routine.
+        sensor: ADXL345 object allowing register operations.
+        is_stationary: Whether this is an active or passive run.
+    """
     # Initialize I2C bus and ADXL345
     bus = smbus2.SMBus(1)
     # Initialize the device
@@ -236,8 +228,11 @@ def measure(sensor: ADXL345):
     duration = 10  # seconds
 
     settings = [
-        f"Output Data Rate:{sensor.odr.hz} Hz ", f"Range: {sensor.g_range.g} g"
+        f"Stationary: {is_stationary}",
+        f"Output Data Rate:{sensor.odr.hz} Hz ",
+        f"Range: {sensor.g_range.g} g"
     ]
+
     # Perform continuous acquisition
     samples = read_continuous(sensor, duration_seconds=duration)
 
