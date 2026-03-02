@@ -2,36 +2,53 @@ import pandas as pd
 import numpy as np
 from scipy import signal
 import matplotlib.pyplot as plt
+from pathlib import Path
 
-# Read the data
-df = pd.read_csv("data/accelerometer_data_20251209_162505.csv")
+fname = Path("data/accelerometer_data_20260302_123634.csv")
+
+# Read first row only (metadata row)
+meta_row = pd.read_csv(fname, nrows=1, header=None).iloc[0]
+
+odr = meta_row[0]
+range_g = meta_row[1]
+
+#print(ODR, accel_range)
+
+df = pd.read_csv(fname, skiprows=1)
 
 # Use time_relative for uniform sampling
-t = df['time_s'].values[:200]
-x = df['x_g'].values[:200]
+t = df['time_s'].values[100:]
+x = df['x_g'].values[100:]
+y = df['y_g'].values[100:]
+z = df['z_g'].values[100:]
 
-# Removing bias
-x = x - np.mean(x)
-
+mag = np.sqrt(x**2 + y**2 + z**2)
+mag -= np.mean(mag)
 
 # FFT
-fft = np.fft.fft(x)
-freq = np.fft.fftfreq(len(x), d=0.01)  # d = 1/sample_rate
+fft = np.fft.fft(mag)
+freq = np.fft.fftfreq(len(mag), d=0.01)  # d = 1/sample_rate
 
 # Welch PSD
-f, psd = signal.welch(x, fs=100, nperseg=256)
+f, psd = signal.welch(mag, fs=100, nperseg=256)
+
+# Output filename (same directory, same stem, different suffix)
+output_path = fname.with_suffix(".png")
 
 # Plot
 plt.figure(figsize=(12, 4))
+
 plt.subplot(211)
-plt.plot(t, x)
-plt.title("STS - Cold Head Off")
+plt.plot(t, mag)
+plt.title(f"{fname.stem} | ODR={odr} | Range={range_g}")
 plt.xlabel('Time (s)')
 plt.ylabel('Acceleration (g)')
 
 plt.subplot(212)
-plt.semilogy(f, psd)
+plt.plot(f, psd)
 plt.xlabel('Frequency (Hz)')
 plt.ylabel('PSD')
-plt.savefig("ColdHeadOn.png")
+
+plt.tight_layout()
+plt.savefig(output_path)
 plt.show()
