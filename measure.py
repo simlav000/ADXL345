@@ -218,7 +218,7 @@ def measure(sensor: ADXL345, is_stationary : bool = False):
     init_adxl(sensor)
 
     # Acquisition parameters
-    duration = 10  # seconds
+    duration = 120 # seconds
 
     settings = [
         f"Stationary: {is_stationary}",
