@@ -97,22 +97,18 @@ def read_continuous(adxl, duration_seconds=10):
         watermark_flag = adxl.interrupt_source.read("WATERMARK")
         fifo_overflow = adxl.interrupt_source.read("OVERRUN")
 
-        # Draw FIFO bar (update in place)
-        fifo_bar = draw_fifo_bar(num_entries, watermark=adxl.watermark)
+        # Draw FIFO bar (update in place - slow but informative)
+        # fifo_bar = draw_fifo_bar(num_entries, watermark=adxl.watermark)
+
         overflow_indicator = fifo_overflow and num_entries > adxl.watermark
 
         # Check for overflow
         if overflow_indicator:
             overflow_count += 1
-            print(f"\n WARNING: FIFO overflow detected! (count: {overflow_count})")
+            # print(f"\n WARNING: FIFO overflow detected! (count: {overflow_count})")
 
-        sys.stdout.write(f"\r{fifo_bar} Samples: {len(samples):4d}")
-        sys.stdout.flush()
-
-        # Watermark status change notification
-        if watermark_flag and not last_watermark:
-            print(f"\n Watermark reached at {len(samples)} samples")
-        last_watermark = watermark_flag
+        # sys.stdout.write(f"\r{fifo_bar} Samples: {len(samples):4d}")
+        # sys.stdout.flush()
 
         # Read samples if available
         if num_entries > 2:
@@ -124,7 +120,7 @@ def read_continuous(adxl, duration_seconds=10):
             continue
 
         # Small sleep to avoid hammering I2C bus
-        time.sleep(0.001)
+        # time.sleep(0.001)
 
     print("\n")
 
@@ -219,9 +215,6 @@ def measure(sensor: ADXL345, is_stationary : bool = False):
         sensor: ADXL345 object allowing register operations.
         is_stationary: Whether this is an active or passive run.
     """
-    # Initialize I2C bus and ADXL345
-    bus = smbus2.SMBus(1)
-    # Initialize the device
     init_adxl(sensor)
 
     # Acquisition parameters
