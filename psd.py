@@ -4,53 +4,88 @@ from scipy import signal
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-fname = Path("data/accelerometer_data_20260302_123634.csv")
 
-# Read first row only (metadata row)
-meta_row = pd.read_csv(fname, nrows=1, header=None).iloc[0]
+def load_metadata(fname):
+    meta = pd.read_csv(fname, nrows=1, header=None).iloc[0]
+    return meta.tolist()
 
-is_stationary =  meta_row[0]
-odr = meta_row[1]
-range_g = meta_row[2]
+def load_data(fname, start=0, stop=100):
+    with open(fname) as f:
+        first_line = f.readline()
 
-df = pd.read_csv(fname, skiprows=1)
+    skip = 1 if "Range" in first_line else 0
+    df = pd.read_csv(fname, skiprows=skip)
+    print(f"Processing: {fname}")
+    t_keys = ["time_s", "t_s", "time_relative"]
 
-# Use time_relative for uniform sampling
-t = df['time_s'].values[100:]
-x = df['x_g'].values[100:]
-y = df['y_g'].values[100:]
-z = df['z_g'].values[100:]
+    for t_k in t_keys:
+        try:
+            t = df[t_k].values[start:stop]
+            break
+        except KeyError:
+            continue
+    else:
+        raise KeyError("No valid time column found")
 
-mag = np.sqrt(x**2 + y**2 + z**2)
-mag -= np.mean(mag)
+    x = df["x_g"].values[start:stop]
+    y = df["y_g"].values[start:stop]
+    z = df["z_g"].values[start:stop]
 
-# FFT
-fft = np.fft.fft(mag)
-freq = np.fft.fftfreq(len(mag), d=0.01)  # d = 1/sample_rate
+    return t, x, y, z
 
-# Welch PSD
-f, psd = signal.welch(mag, fs=100, nperseg=256)
 
-# Output filename (same directory, same stem, different suffix)
-output_path = fname.with_suffix(".png")
+def compute_magnitude(x, y, z):
+    mag = np.sqrt(x**2 + y**2 + z**2)
+    mag -= np.mean(mag)
+    return mag
 
-# Welch PSD
-f, psd = signal.welch(acc_mag, fs=100, nperseg=256)
 
-# Plot
-plt.figure(figsize=(12, 4))
+def compute_psd(mag, fs=100):
+    f, psd = signal.welch(mag, fs=fs, nperseg=256)
+    return f, psd
 
-plt.subplot(211)
-plt.plot(t, mag)
-plt.title(f"{fname.stem} | {is_stationary} | {odr} | {range_g}")
-plt.xlabel('Time (s)')
-plt.ylabel('Acceleration (g)')
 
-plt.subplot(212)
-plt.plot(f, psd)
-plt.xlabel('Frequency (Hz)')
-plt.ylabel('PSD')
+def make_plot(t, mag, f, psd, meta, title, output_path):
+    meta_str = " | ".join(str(m) for m in meta if str(m) != "nan")
 
-plt.tight_layout()
-plt.savefig(output_path)
-plt.show()
+    plt.figure(figsize=(12, 4))
+
+    plt.subplot(211)
+    plt.plot(t, mag)
+    plt.title(f"{title} | {meta_str}")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Acceleration (g)")
+
+    plt.subplot(212)
+    plt.plot(f, psd)
+    plt.xlabel("Frequency (Hz)")
+    plt.ylabel("PSD")
+
+    plt.tight_layout()
+    plt.savefig(output_path)
+    plt.close()
+
+def process_file(fname, fig_dir):
+    meta = load_metadata(fname)
+    has_header = any("Range" in str(m) for m in meta)
+    t, x, y, z = load_data(fname)
+
+    mag = compute_magnitude(x, y, z)
+    f, psd = compute_psd(mag)
+
+    output = fig_dir / f"{fname.stem}.png"
+
+    make_plot(t, mag, f, psd, meta, fname.stem, output)
+
+
+def process_all(data_dir="data", fig_dir="Figures"):
+    data_dir = Path(data_dir)
+    fig_dir = Path(fig_dir)
+    fig_dir.mkdir(exist_ok=True)
+
+    for fname in data_dir.glob("*.csv"):
+        process_file(fname, fig_dir)
+
+
+if __name__ == "__main__":
+    process_all()
