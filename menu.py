@@ -2,6 +2,7 @@
 import smbus2
 from adxl345 import ADXL345, OutputDataRate, Range  # adjust import if needed
 import measure
+import gc
 
 
 
@@ -37,6 +38,7 @@ def confirm_settings(odr, g_range):
 
 
 def main():
+    gc.disable()
     BUS_NUM = 1
     DEVICE_ADDR = 0x53  # typical ADXL345 address
 
