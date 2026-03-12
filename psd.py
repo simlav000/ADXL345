@@ -20,16 +20,16 @@ def load_data(fname, start=0, stop=100):
 
     for t_k in t_keys:
         try:
-            t = df[t_k].values[start:stop]
+            t = df[t_k].values[start:]
             break
         except KeyError:
             continue
     else:
         raise KeyError("No valid time column found")
 
-    x = df["x_g"].values[start:stop]
-    y = df["y_g"].values[start:stop]
-    z = df["z_g"].values[start:stop]
+    x = df["x_g"].values[start:]
+    y = df["y_g"].values[start:]
+    z = df["z_g"].values[start:]
 
     return t, x, y, z
 
@@ -45,7 +45,7 @@ def compute_psd(mag, fs=100):
     return f, psd
 
 
-def make_plot(t, mag, f, psd, meta, title, output_path):
+def make_plot(t, mag, f, psd, meta, title, output_path, show=False):
     meta_str = " | ".join(str(m) for m in meta if str(m) != "nan")
 
     plt.figure(figsize=(12, 4))
@@ -63,6 +63,9 @@ def make_plot(t, mag, f, psd, meta, title, output_path):
 
     plt.tight_layout()
     plt.savefig(output_path)
+    if show:
+        print("show")
+        plt.show()
     plt.close()
 
 def process_file(fname, fig_dir):
@@ -75,7 +78,7 @@ def process_file(fname, fig_dir):
 
     output = fig_dir / f"{fname.stem}.png"
 
-    make_plot(t, mag, f, psd, meta, fname.stem, output)
+    make_plot(t, mag, f, psd, meta, fname.stem, output, show=True)
 
 
 def process_all(data_dir="data", fig_dir="Figures"):
@@ -88,4 +91,5 @@ def process_all(data_dir="data", fig_dir="Figures"):
 
 
 if __name__ == "__main__":
-    process_all()
+    process_file(Path("data/accelerometer_data_20260305_112631.csv"), Path("Figures"))
+    #process_all()

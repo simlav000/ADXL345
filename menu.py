@@ -58,7 +58,8 @@ def main():
         address=DEVICE_ADDR,
         bus=bus,
         odr=odr,
-        g_range=g_range
+        g_range=g_range,
+        watermark=16
     )
 
     measure.measure(sensor, is_stationary)

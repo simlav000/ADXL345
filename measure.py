@@ -30,6 +30,8 @@ def init_adxl(adxl):
 
 def draw_fifo_bar(num_entries, watermark=28, max_size=32, bar_width=40):
     """Draw a visual representation of FIFO fill level.
+    This is SLOW. Was using it for fun but you can't achieve very fast
+    ODRs without overflow here.
 
     Args:
         num_entries: Current number of samples in FIFO
@@ -70,6 +72,7 @@ def read_continuous(adxl, duration_seconds=10):
     """
     sample_rate = adxl.odr.hz
     sample_period = 1.0 / sample_rate
+    watermark = adxl.watermark
 
     print(f"=== STARTING CONTINUOUS ACQUISITION ===")
     print(f"Duration: {duration_seconds}s")
@@ -81,48 +84,25 @@ def read_continuous(adxl, duration_seconds=10):
     overflow_count = 0
     read_count = 0
     samples = []
-    last_watermark = False
-
-    # Print initial status line
-    print("FIFO Status:")
 
     # Read INT_SOURCE register to clear overrun and watermark bits
     watermark_flag = adxl.interrupt_source.read("WATERMARK")
     time.sleep(0.01)
 
     start_time = time.time()
+
     while time.time() - start_time < duration_seconds:
-        # Check FIFO status
-        num_entries = adxl.fifo_status.read("ENTRIES")
-        watermark_flag = adxl.interrupt_source.read("WATERMARK")
-        fifo_overflow = adxl.interrupt_source.read("OVERRUN")
+        watermark_reached = adxl.interrupt_source.read("WATERMARK")
+        overflow_occured = adxl.interrupt_source.read("OVERRUN")
 
-        # Draw FIFO bar (update in place - slow but informative)
-        # fifo_bar = draw_fifo_bar(num_entries, watermark=adxl.watermark)
-
-        overflow_indicator = fifo_overflow and num_entries > adxl.watermark
-
-        # Check for overflow
-        if overflow_indicator:
+        if overflow_occured:
             overflow_count += 1
-            # print(f"\n WARNING: FIFO overflow detected! (count: {overflow_count})")
 
-        # sys.stdout.write(f"\r{fifo_bar} Samples: {len(samples):4d}")
-        # sys.stdout.flush()
-
-        # Read samples if available
-        if num_entries > 2:
-            read_count += 1
-            samples.append(adxl.get_accel())
-        else:
-            # Give more time for FIFO to fill up
-            time.sleep(1/adxl.odr.hz)
-            continue
-
-        # Small sleep to avoid hammering I2C bus
-        # time.sleep(0.001)
-
-    print("\n")
+        # Read waterflow amount of samples
+        if watermark_reached:
+            for _ in range(watermark):
+                samples.append(adxl.get_accel())
+            read_count += watermark
 
     # Create timestamped samples
     timestamped_samples = []
@@ -191,7 +171,6 @@ def print_sample_preview(samples, num_preview=10):
 
     if len(samples) > num_preview * 2:
         print("...")
-        print()
 
         # Last samples
         for timestamp, x, y, z in samples[-num_preview:]:
