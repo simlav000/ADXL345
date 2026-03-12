@@ -1,3 +1,6 @@
 *.png
 private_README.md
 data
+# C++ build artefacts
+*.o
+adxl345_measure
