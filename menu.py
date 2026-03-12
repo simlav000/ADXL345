@@ -40,7 +40,7 @@ def confirm_settings(odr, g_range):
 def main():
     gc.disable()
     BUS_NUM = 1
-    DEVICE_ADDR = 0x53  # typical ADXL345 address
+    DEVICE_ADDR = 0x1D
 
     default_odr = OutputDataRate.ODR_100
     default_range = Range.RANGE_FULL

@@ -227,7 +227,7 @@ if __name__ == "__main__":
     try:
         bus = smbus2.SMBus(1)
         sensor = ADXL345(
-            0x1D,
+            0x53,
             bus,
             watermark=28,
             odr=OutputDataRate.ODR_100
